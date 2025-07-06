@@ -31,10 +31,10 @@ export function Appointments() {
     if (user) {
       fetchAppointments()
     }
-  }, [user, fetchAppointments]))
+  }, [user])
 
   
-    try {
+    
       const { data, error } = await supabase
         .from('appointments')
         .select(`

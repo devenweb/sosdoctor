@@ -29,9 +29,9 @@ export function Profile() {
     if (user) {
       fetchProfile()
     }
-  }, [user, fetchProfile]))
+  }, [user])
 
-  const fetchProfile = useCallback(async () => {
+  const fetchProfile = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
