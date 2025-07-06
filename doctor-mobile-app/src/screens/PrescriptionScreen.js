@@ -1,21 +1,50 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import { supabase } from '../../src/services/supabase'; // Adjust path as needed
 
 export default function PrescriptionScreen({ navigation, route }) {
   const { appointmentId, patientName } = route.params || {};
   const [prescriptionText, setPrescriptionText] = useState('');
 
-  const handleSendPrescription = () => {
-    if (prescriptionText.trim()) {
-      // In a real app, you would generate a PDF and send it to the patient
+  const handleSendPrescription = async () => {
+    if (!prescriptionText.trim()) {
+      Alert.alert('Error', 'Please enter prescription details.');
+      return;
+    }
+
+    if (!appointmentId) {
+      Alert.alert('Error', 'Appointment ID is missing. Cannot send prescription.');
+      return;
+    }
+
+    try {
+      // In a real app, you would generate a PDF and upload it to Supabase Storage,
+      // then store the URL in the database.
+      // For now, we'll just store a placeholder URL.
+      const placeholderPdfUrl = `https://example.com/prescriptions/${appointmentId}.pdf`;
+
+      const { data, error } = await supabase
+        .from('prescriptions')
+        .insert([
+          {
+            appointment_id: appointmentId,
+            pdf_url: placeholderPdfUrl,
+            details: prescriptionText, // Assuming you add a 'details' column to prescriptions table
+          },
+        ]);
+
+      if (error) {
+        throw error;
+      }
+
       Alert.alert(
         'Prescription Sent',
         `Prescription for ${patientName} (Appointment ID: ${appointmentId}) sent successfully!`
       );
       console.log('Prescription Content:', prescriptionText);
       navigation.goBack(); // Go back to appointments screen
-    } else {
-      Alert.alert('Error', 'Please enter prescription details.');
+    } catch (err) {
+      Alert.alert('Error', 'Failed to send prescription: ' + err.message);
     }
   };
 

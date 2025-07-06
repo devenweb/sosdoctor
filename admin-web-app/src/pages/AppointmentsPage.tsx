@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../services/supabase';
 
 interface Appointment {
-  id: number;
+  id: string; // Changed to string for UUID
   patientName: string;
   doctorName: string;
   type: string;
@@ -10,18 +11,85 @@ interface Appointment {
 }
 
 function AppointmentsPage() {
-  const [appointments, setAppointments] = useState<Appointment[]>([
-    { id: 1, patientName: 'Alice Smith', doctorName: 'Dr. John Doe', type: 'video', date: '2025-07-10 10:00 AM', status: 'scheduled' },
-    { id: 2, patientName: 'Bob Johnson', doctorName: 'Dr. Jane Smith', type: 'chat', date: '2025-07-09 02:30 PM', status: 'completed' },
-    { id: 3, patientName: 'Charlie Brown', doctorName: 'Dr. John Doe', type: 'video', date: '2025-07-11 11:00 AM', status: 'scheduled' },
-    { id: 4, patientName: 'Diana Prince', doctorName: 'Dr. Jane Smith', type: 'chat', date: '2025-07-08 04:00 PM', status: 'cancelled' },
-  ]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleUpdateStatus = (id: number, newStatus: 'scheduled' | 'completed' | 'cancelled') => {
-    setAppointments(appointments.map(appt =>
-      appt.id === id ? { ...appt, status: newStatus } : appt
-    ));
+  useEffect(() => {
+    fetchAppointments();
+
+    const appointmentSubscription = supabase
+      .from('appointments')
+      .on('*', payload => {
+        fetchAppointments(); // Re-fetch all appointments on any change
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeSubscription(appointmentSubscription);
+    };
+  }, []);
+
+  const fetchAppointments = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select(
+          `
+          id,
+          appointment_type,
+          time_slot,
+          status,
+          patient:profiles!appointments_patient_id_fkey(full_name),
+          doctor:doctors!appointments_doctor_id_fkey(profiles(full_name))
+        `
+        );
+
+      if (error) {
+        throw error;
+      }
+
+      const fetchedAppointments: Appointment[] = data.map((appt: any) => ({
+        id: appt.id,
+        patientName: appt.patient?.full_name || 'N/A',
+        doctorName: appt.doctor?.profiles?.full_name || 'N/A',
+        type: appt.appointment_type,
+        date: new Date(appt.time_slot).toLocaleString(),
+        status: appt.status,
+      }));
+      setAppointments(fetchedAppointments);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleUpdateStatus = async (id: string, newStatus: 'scheduled' | 'completed' | 'cancelled') => {
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+      // Optimistically update UI or re-fetch
+      fetchAppointments();
+    } catch (err: any) {
+      alert(`Error updating status: ${err.message}`);
+    }
+  };
+
+  if (loading) {
+    return <div style={{ padding: '20px' }}>Loading appointments...</div>;
+  }
+
+  if (error) {
+    return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>;
+  }
 
   return (
     <div style={{ padding: '20px' }}>

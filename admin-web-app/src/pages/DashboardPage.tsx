@@ -1,13 +1,78 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../services/supabase';
 
 function DashboardPage() {
-  // Simulated data for reports
-  const totalAppointments = 1250;
-  const completedAppointments = 1100;
-  const pendingAppointments = 150;
-  const totalDoctors = 25;
-  const totalPatients = 5000;
+  const [totalAppointments, setTotalAppointments] = useState(0);
+  const [completedAppointments, setCompletedAppointments] = useState(0);
+  const [pendingAppointments, setPendingAppointments] = useState(0);
+  const [totalDoctors, setTotalDoctors] = useState(0);
+  const [totalPatients, setTotalPatients] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Total Revenue remains simulated as there's no payment table yet
   const totalRevenue = 75000;
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch Total Appointments
+        const { count: apptCount, error: apptError } = await supabase
+          .from('appointments')
+          .select('id', { count: 'exact', head: true });
+        if (apptError) throw apptError;
+        setTotalAppointments(apptCount || 0);
+
+        // Fetch Completed Appointments
+        const { count: completedApptCount, error: completedApptError } = await supabase
+          .from('appointments')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'completed');
+        if (completedApptError) throw completedApptError;
+        setCompletedAppointments(completedApptCount || 0);
+
+        // Fetch Pending Appointments
+        const { count: pendingApptCount, error: pendingApptError } = await supabase
+          .from('appointments')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'pending');
+        if (pendingApptError) throw pendingApptError;
+        setPendingAppointments(pendingApptCount || 0);
+
+        // Fetch Total Doctors
+        const { count: doctorCount, error: doctorError } = await supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('is_doctor', true);
+        if (doctorError) throw doctorError;
+        setTotalDoctors(doctorCount || 0);
+
+        // Fetch Total Patients
+        const { count: patientCount, error: patientError } = await supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('is_doctor', false); // Assuming non-doctors are patients
+        if (patientError) throw patientError;
+        setTotalPatients(patientCount || 0);
+
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return <div style={{ padding: '20px' }}>Loading dashboard data...</div>;
+  }
+
+  if (error) {
+    return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>;
+  }
 
   return (
     <div style={{ padding: '20px' }}>

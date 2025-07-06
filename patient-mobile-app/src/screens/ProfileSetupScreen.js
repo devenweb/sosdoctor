@@ -1,20 +1,43 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import { supabase } from '../services/supabase';
 
 export default function ProfileSetupScreen({ navigation }) {
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [address, setAddress] = useState('');
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (!fullName || !phoneNumber || !address) {
       Alert.alert('Error', 'Please fill in all fields.');
       return;
     }
-    // In a real app, you would save this data to your backend (e.g., Supabase profile table)
-    console.log('Profile Data:', { fullName, phoneNumber, address });
-    Alert.alert('Success', 'Profile saved successfully!');
-    navigation.navigate('Home'); // Navigate to home screen after profile setup
+
+    const user = supabase.auth.user();
+    if (!user) {
+      Alert.alert('Error', 'User not logged in.');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          full_name: fullName,
+          phone_number: phoneNumber,
+          address: address,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      Alert.alert('Success', 'Profile saved successfully!');
+      navigation.navigate('Home'); // Navigate to home screen after profile setup
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
   };
 
   return (

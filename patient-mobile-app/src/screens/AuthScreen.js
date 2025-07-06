@@ -12,20 +12,28 @@ export default function AuthScreen({ navigation, route }) {
 
   const { signUp, signIn } = useAuth();
 
-  const handleAuth = async () => {
+  const handleSignUp = async () => {
     setLoading(true);
     setError('');
     try {
-      if (isSignUp) {
-        const { error } = await signUp(email, password);
-        if (error) throw error;
-        Alert.alert('Success', 'Account created! Please check your email for verification.');
-        navigation.navigate('ProfileSetup'); // Navigate to profile setup after successful sign-up
-      } else {
-        const { error } = await signIn(email, password);
-        if (error) throw error;
-        navigation.navigate('Home');
-      }
+      const { error } = await signUp(email, password);
+      if (error) throw error;
+      Alert.alert('Success', 'Account created! Please check your email for verification.');
+      navigation.navigate('ProfileSetup'); // Navigate to profile setup after successful sign-up
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignIn = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { error } = await signIn(email, password);
+      if (error) throw error;
+      navigation.navigate('Home');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -52,7 +60,7 @@ export default function AuthScreen({ navigation, route }) {
         secureTextEntry
       />
       {error ? <Text style={{ color: 'red', marginBottom: 10 }}>{error}</Text> : null}
-      <Button title={loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')} onPress={handleAuth} disabled={loading} />
+      <Button title={loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')} onPress={isSignUp ? handleSignUp : handleSignIn} disabled={loading} />
     </View>
   );
 }

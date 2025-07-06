@@ -1,50 +1,153 @@
-import React, { useState } from 'react';
-import { View, Text, Button, StyleSheet, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Button, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { supabase } from '../../src/services/supabase'; // Adjust path as needed
+import { useAuth } from '../../src/context/AuthContext'; // Adjust path as needed
 
 export default function AppointmentsScreen({ navigation }) {
-  const [appointments, setAppointments] = useState([
-    { id: '1', patientName: 'Alice Smith', type: 'video', status: 'scheduled' },
-    { id: '2', patientName: 'Bob Johnson', type: 'chat', status: 'scheduled' },
-    { id: '3', patientName: 'Charlie Brown', type: 'video', status: 'completed' },
-  ]);
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { session } = useAuth();
+
+  useEffect(() => {
+    if (!session) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchAppointments = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('appointments')
+          .select(`
+            *,
+            patient:profiles(full_name)
+          `)
+          .eq('doctor_id', session.user.id)
+          .order('time_slot', { ascending: true });
+
+        if (error) {
+          throw error;
+        }
+        setAppointments(data);
+      } catch (err) {
+        setError(err.message);
+        Alert.alert('Error', 'Failed to fetch appointments: ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAppointments();
+
+    // Real-time listener for appointments (optional but good for dynamic updates)
+    const appointmentSubscription = supabase
+      .from('appointments')
+      .on('*', payload => {
+        // Handle real-time updates (insert, update, delete)
+        fetchAppointments(); // Re-fetch all appointments for simplicity
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeSubscription(appointmentSubscription);
+    };
+  }, [session]);
+
+  const updateAppointmentStatus = async (id, newStatus) => {
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+      // Update local state to reflect the change
+      setAppointments(prevAppointments =>
+        prevAppointments.map(appt =>
+          appt.id === id ? { ...appt, status: newStatus } : appt
+        )
+      );
+      Alert.alert('Success', `Appointment ${id} status updated to ${newStatus}.`);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to update appointment status: ' + err.message);
+    }
+  };
 
   const renderAppointmentItem = ({ item }) => (
     <View style={styles.appointmentCard}>
-      <Text style={styles.patientName}>{item.patientName}</Text>
-      <Text>Type: {item.type}</Text>
+      <Text style={styles.patientName}>{item.patient.full_name || 'N/A'}</Text>
+      <Text>Type: {item.appointment_type}</Text>
+      <Text>Time: {new Date(item.time_slot).toLocaleString()}</Text>
       <Text>Status: {item.status}</Text>
       {item.status === 'scheduled' && (
         <View style={styles.buttonContainer}>
-          {item.type === 'video' && (
+          {item.appointment_type === 'video_consult' && (
             <Button
               title="Start Video Call"
-              onPress={() => navigation.navigate('VideoCall', { appointmentId: item.id, patientName: item.patientName })}
+              onPress={() => {
+                updateAppointmentStatus(item.id, 'in_progress');
+                navigation.navigate('VideoCall', { appointmentId: item.id, patientName: item.patient.full_name });
+              }}
             />
           )}
-          {item.type === 'chat' && (
+          {item.appointment_type === 'chat_consult' && (
             <Button
               title="Start Chat"
-              onPress={() => navigation.navigate('Chat', { appointmentId: item.id, patientName: item.patientName })}
+              onPress={() => {
+                updateAppointmentStatus(item.id, 'in_progress');
+                navigation.navigate('Chat', { appointmentId: item.id, patientName: item.patient.full_name });
+              }}
             />
           )}
           <Button
             title="Send Prescription"
-            onPress={() => navigation.navigate('Prescription', { appointmentId: item.id, patientName: item.patientName })}
+            onPress={() => navigation.navigate('Prescription', { appointmentId: item.id, patientName: item.patient.full_name })}
           />
         </View>
+      )}
+      {item.status === 'in_progress' && (
+        <Button
+          title="Mark as Completed"
+          onPress={() => updateAppointmentStatus(item.id, 'completed')}
+        />
       )}
     </View>
   );
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text>Loading appointments...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Error: {error}</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Your Appointments</Text>
-      <FlatList
-        data={appointments}
-        keyExtractor={(item) => item.id}
-        renderItem={renderAppointmentItem}
-        contentContainerStyle={styles.listContent}
-      />
+      {appointments.length === 0 ? (
+        <Text>No appointments found.</Text>
+      ) : (
+        <FlatList
+          data={appointments}
+          keyExtractor={(item) => item.id}
+          renderItem={renderAppointmentItem}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
     </View>
   );
 }
@@ -78,5 +181,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginTop: 10,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 16,
   },
 });

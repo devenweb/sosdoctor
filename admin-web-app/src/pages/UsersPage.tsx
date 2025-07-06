@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useDoctors } from '../hooks/useDoctors';
 
 interface Doctor {
   id: number;
@@ -8,29 +9,25 @@ interface Doctor {
 }
 
 function UsersPage() {
-  const [doctors, setDoctors] = useState<Doctor[]>([
-    { id: 1, name: 'Dr. John Doe', specialty: 'General Practitioner', email: 'john.doe@example.com' },
-    { id: 2, name: 'Dr. Jane Smith', specialty: 'Pediatrician', email: 'jane.smith@example.com' },
-  ]);
+  const { doctors, addDoctor, updateDoctor, deleteDoctor } = useDoctors();
   const [newDoctorName, setNewDoctorName] = useState('');
   const [newDoctorSpecialty, setNewDoctorSpecialty] = useState('');
   const [newDoctorEmail, setNewDoctorEmail] = useState('');
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
 
-  const handleAddDoctor = () => {
+  const handleAddOrUpdateDoctor = () => {
     if (newDoctorName && newDoctorSpecialty && newDoctorEmail) {
-      const newDoctor: Doctor = {
-        id: doctors.length > 0 ? Math.max(...doctors.map(d => d.id)) + 1 : 1,
-        name: newDoctorName,
-        specialty: newDoctorSpecialty,
-        email: newDoctorEmail,
-      };
-      setDoctors([...doctors, newDoctor]);
+      if (editingDoctor) {
+        updateDoctor({ ...editingDoctor, name: newDoctorName, specialty: newDoctorSpecialty, email: newDoctorEmail });
+        setEditingDoctor(null);
+      } else {
+        addDoctor({ name: newDoctorName, specialty: newDoctorSpecialty, email: newDoctorEmail });
+      }
       setNewDoctorName('');
       setNewDoctorSpecialty('');
       setNewDoctorEmail('');
     } else {
-      alert('Please fill in all fields for the new doctor.');
+      alert('Please fill in all fields for the doctor.');
     }
   };
 
@@ -41,24 +38,11 @@ function UsersPage() {
     setNewDoctorEmail(doctor.email);
   };
 
-  const handleUpdateDoctor = () => {
-    if (editingDoctor && newDoctorName && newDoctorSpecialty && newDoctorEmail) {
-      setDoctors(doctors.map(doc =>
-        doc.id === editingDoctor.id
-          ? { ...doc, name: newDoctorName, specialty: newDoctorSpecialty, email: newDoctorEmail }
-          : doc
-      ));
-      setEditingDoctor(null);
-      setNewDoctorName('');
-      setNewDoctorSpecialty('');
-      setNewDoctorEmail('');
-    } else {
-      alert('Please fill in all fields for the doctor.');
-    }
-  };
-
-  const handleDeleteDoctor = (id: number) => {
-    setDoctors(doctors.filter(doctor => doctor.id !== id));
+  const handleCancelEdit = () => {
+    setEditingDoctor(null);
+    setNewDoctorName('');
+    setNewDoctorSpecialty('');
+    setNewDoctorEmail('');
   };
 
   return (
@@ -88,18 +72,11 @@ function UsersPage() {
           onChange={(e) => setNewDoctorEmail(e.target.value)}
           style={{ display: 'block', marginBottom: '10px', padding: '8px', width: '100%' }}
         />
-        {editingDoctor ? (
-          <button onClick={handleUpdateDoctor} style={{ padding: '10px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Update Doctor</button>
-        ) : (
-          <button onClick={handleAddDoctor} style={{ padding: '10px 15px', backgroundColor: '#008CBA', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Add Doctor</button>
-        )}
+        <button onClick={handleAddOrUpdateDoctor} style={{ padding: '10px 15px', backgroundColor: editingDoctor ? '#4CAF50' : '#008CBA', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+          {editingDoctor ? 'Update Doctor' : 'Add Doctor'}
+        </button>
         {editingDoctor && (
-          <button onClick={() => {
-            setEditingDoctor(null);
-            setNewDoctorName('');
-            setNewDoctorSpecialty('');
-            setNewDoctorEmail('');
-          }} style={{ padding: '10px 15px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', marginLeft: '10px' }}>Cancel Edit</button>
+          <button onClick={handleCancelEdit} style={{ padding: '10px 15px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', marginLeft: '10px' }}>Cancel Edit</button>
         )}
       </div>
 
@@ -123,7 +100,7 @@ function UsersPage() {
               <td style={{ border: '1px solid #ddd', padding: '8px' }}>{doctor.email}</td>
               <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                 <button onClick={() => handleEditDoctor(doctor)} style={{ padding: '5px 10px', backgroundColor: '#ffc107', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', marginRight: '5px' }}>Edit</button>
-                <button onClick={() => handleDeleteDoctor(doctor.id)} style={{ padding: '5px 10px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Delete</button>
+                <button onClick={() => deleteDoctor(doctor.id)} style={{ padding: '5px 10px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Delete</button>
               </td>
             </tr>
           ))}
