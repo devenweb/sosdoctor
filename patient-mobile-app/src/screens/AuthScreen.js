@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Button, ActivityIndicator, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 
-export default function AuthScreen({ navigation }) {
+export default function AuthScreen({ navigation, route }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const { isSignUp } = route.params || { isSignUp: false }; // Default to false if not provided
 
   const { signUp, signIn } = useAuth();
 
@@ -19,6 +20,7 @@ export default function AuthScreen({ navigation }) {
         const { error } = await signUp(email, password);
         if (error) throw error;
         Alert.alert('Success', 'Account created! Please check your email for verification.');
+        navigation.navigate('ProfileSetup'); // Navigate to profile setup after successful sign-up
       } else {
         const { error } = await signIn(email, password);
         if (error) throw error;
@@ -51,11 +53,6 @@ export default function AuthScreen({ navigation }) {
       />
       {error ? <Text style={{ color: 'red', marginBottom: 10 }}>{error}</Text> : null}
       <Button title={loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')} onPress={handleAuth} disabled={loading} />
-      <Button
-        title={isSignUp ? 'Already have an account? Sign In' : 'Don\'t have an account? Sign Up'}
-        onPress={() => setIsSignUp(!isSignUp)}
-        style={{ marginTop: 10 }}
-      />
     </View>
   );
 }

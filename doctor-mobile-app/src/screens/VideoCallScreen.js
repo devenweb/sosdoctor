@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Button, StyleSheet, Alert } from 'react-native';
 
 export default function VideoCallScreen({ navigation, route }) {
-  const { appointmentId } = route.params || {};
+  const { appointmentId, patientName } = route.params || {};
   const [callActive, setCallActive] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
 
@@ -10,7 +10,7 @@ export default function VideoCallScreen({ navigation, route }) {
     // Simulate joining a video call
     const timer = setTimeout(() => {
       setCallActive(true);
-      Alert.alert('Call Connected', `You are now in a video call for appointment ${appointmentId}.`);
+      Alert.alert('Call Connected', `You are now in a video call with ${patientName} for appointment ${appointmentId}.`);
       // Start call duration timer
       const durationInterval = setInterval(() => {
         setCallDuration(prevDuration => prevDuration + 1);
@@ -19,27 +19,22 @@ export default function VideoCallScreen({ navigation, route }) {
     }, 2000); // Simulate 2 seconds to connect
 
     return () => clearTimeout(timer);
-  }, [appointmentId]);
+  }, [appointmentId, patientName]);
 
   const handleEndCall = () => {
     setCallActive(false);
-    Alert.alert('Call Ended', `Call for appointment ${appointmentId} has ended. Duration: ${callDuration} seconds.`);
+    Alert.alert('Call Ended', `Call with ${patientName} for appointment ${appointmentId} has ended. Duration: ${callDuration} seconds.`);
     navigation.goBack(); // Or navigate to a call summary screen
-  };
-
-  const handleAttachFiles = () => {
-    navigation.navigate('FileAttachment', { appointmentId });
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Video Call Screen</Text>
+      <Text style={styles.title}>Video Call with {patientName}</Text>
       {appointmentId && <Text>Appointment ID: {appointmentId}</Text>}
       {callActive ? (
         <>
           <Text style={styles.statusText}>Call Active</Text>
           <Text>Duration: {callDuration} seconds</Text>
-          <Button title="Attach Files" onPress={handleAttachFiles} />
           <Button title="End Call" onPress={handleEndCall} color="red" />
         </>
       ) : (
