@@ -1,6 +1,13 @@
-import React, { useState, useEffect } from 'react'
+
+
+
+
+
+
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase'
-import { Search, Star, MapPin, Clock, DollarSign } from 'lucide-react'
+import { Search, Star, Clock, DollarSign } from 'lucide-react'
+
 
 interface Doctor {
   id: string

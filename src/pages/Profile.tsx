@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react'
+
+
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import { User, Mail, Phone, Calendar, MapPin, Heart } from 'lucide-react'
@@ -27,9 +29,9 @@ export function Profile() {
     if (user) {
       fetchProfile()
     }
-  }, [user])
+  }, [user, fetchProfile]))
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')

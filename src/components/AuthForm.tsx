@@ -31,7 +31,7 @@ export function AuthForm() {
         if (error) throw error
       }
       navigate('/dashboard')
-    } catch (error: any) {
+    } catch (error: Error) {
       // Handle email not confirmed error specifically
       if (error.message === 'Email not confirmed') {
         setError('Please check your email inbox (including spam/junk folders) and click the confirmation link to verify your account before signing in.')

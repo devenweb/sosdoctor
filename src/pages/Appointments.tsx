@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react'
+
+
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { Calendar, Clock, User, Video, MapPin } from 'lucide-react'
@@ -29,9 +31,9 @@ export function Appointments() {
     if (user) {
       fetchAppointments()
     }
-  }, [user])
+  }, [user, fetchAppointments]))
 
-  const fetchAppointments = async () => {
+  
     try {
       const { data, error } = await supabase
         .from('appointments')

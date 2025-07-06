@@ -1,4 +1,4 @@
-import React from 'react'
+
 import { useAuth } from '../hooks/useAuth'
 import { Calendar, Users, Video, FileText } from 'lucide-react'
 
