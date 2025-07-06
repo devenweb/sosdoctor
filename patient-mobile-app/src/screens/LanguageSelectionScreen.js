@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, Button, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LanguageSelectionScreen({ navigation }) {
-  const selectLanguage = (language) => {
-    // In a real app, you would save this preference (e.g., AsyncStorage, Context)
+  const selectLanguage = async (language) => {
+    await AsyncStorage.setItem('selectedLanguage', language);
     console.log(`Selected language: ${language}`);
     navigation.navigate('Welcome');
   };

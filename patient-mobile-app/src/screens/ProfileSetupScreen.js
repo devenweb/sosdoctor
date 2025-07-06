@@ -8,8 +8,16 @@ export default function ProfileSetupScreen({ navigation }) {
   const [address, setAddress] = useState('');
 
   const handleSaveProfile = async () => {
-    if (!fullName || !phoneNumber || !address) {
-      Alert.alert('Error', 'Please fill in all fields.');
+    if (!fullName.trim()) {
+      Alert.alert('Error', 'Full Name cannot be empty.');
+      return;
+    }
+    if (!phoneNumber.match(/^\+?[0-9]{7,15}$/)) { // Basic phone number validation
+      Alert.alert('Error', 'Please enter a valid phone number.');
+      return;
+    }
+    if (!address.trim()) {
+      Alert.alert('Error', 'Address cannot be empty.');
       return;
     }
 

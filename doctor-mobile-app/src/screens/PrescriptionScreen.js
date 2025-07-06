@@ -1,10 +1,52 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
-import { supabase } from '../../src/services/supabase'; // Adjust path as needed
+import { supabase } from '../services/supabase';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 export default function PrescriptionScreen({ navigation, route }) {
-  const { appointmentId, patientName } = route.params || {};
+  const { appointmentId, patientName, patientId } = route.params || {};
   const [prescriptionText, setPrescriptionText] = useState('');
+
+  const generatePdf = async (htmlContent) => {
+    try {
+      const { uri } = await Print.printToFileAsync({
+        html: htmlContent,
+        width: 612,
+        height: 792, // Standard A4 size
+      });
+      return uri;
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      Alert.alert('PDF Generation Error', 'Could not generate PDF.');
+      return null;
+    }
+  };
+
+  const uploadPdfToSupabase = async (pdfUri, fileName) => {
+    try {
+      const response = await fetch(pdfUri);
+      const blob = await response.blob();
+
+      const { data, error } = await supabase.storage
+        .from('prescriptions') // Assuming you have a bucket named 'prescriptions'
+        .upload(fileName, blob, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const { data: publicUrlData } = supabase.storage.from('prescriptions').getPublicUrl(fileName);
+      return publicUrlData.publicUrl;
+    } catch (error) {
+      console.error('Error uploading PDF to Supabase:', error);
+      Alert.alert('Upload Error', 'Could not upload prescription PDF.');
+      return null;
+    }
+  };
 
   const handleSendPrescription = async () => {
     if (!prescriptionText.trim()) {
@@ -12,24 +54,38 @@ export default function PrescriptionScreen({ navigation, route }) {
       return;
     }
 
-    if (!appointmentId) {
-      Alert.alert('Error', 'Appointment ID is missing. Cannot send prescription.');
+    if (!appointmentId || !patientId) {
+      Alert.alert('Error', 'Appointment ID or Patient ID is missing. Cannot send prescription.');
       return;
     }
 
-    try {
-      // In a real app, you would generate a PDF and upload it to Supabase Storage,
-      // then store the URL in the database.
-      // For now, we'll just store a placeholder URL.
-      const placeholderPdfUrl = `https://example.com/prescriptions/${appointmentId}.pdf`;
+    const htmlContent = `
+      <h1>Prescription for ${patientName}</h1>
+      <p><strong>Appointment ID:</strong> ${appointmentId}</p>
+      <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+      <hr/>
+      <p>${prescriptionText.replace(/\n/g, '<br/>')}</p>
+      <hr/>
+      <p>Doctor's Signature: _________________________</p>
+    `;
 
+    const pdfUri = await generatePdf(htmlContent);
+    if (!pdfUri) return;
+
+    const fileName = `prescription_${appointmentId}_${Date.now()}.pdf`;
+    const publicUrl = await uploadPdfToSupabase(pdfUri, fileName);
+
+    if (!publicUrl) return;
+
+    try {
       const { data, error } = await supabase
         .from('prescriptions')
         .insert([
           {
             appointment_id: appointmentId,
-            pdf_url: placeholderPdfUrl,
-            details: prescriptionText, // Assuming you add a 'details' column to prescriptions table
+            patient_id: patientId, // Ensure patient_id is stored
+            pdf_url: publicUrl,
+            details: prescriptionText,
           },
         ]);
 
@@ -41,8 +97,11 @@ export default function PrescriptionScreen({ navigation, route }) {
         'Prescription Sent',
         `Prescription for ${patientName} (Appointment ID: ${appointmentId}) sent successfully!`
       );
-      console.log('Prescription Content:', prescriptionText);
-      navigation.goBack(); // Go back to appointments screen
+      // Optionally share the PDF directly
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(pdfUri);
+      }
+      navigation.goBack();
     } catch (err) {
       Alert.alert('Error', 'Failed to send prescription: ' + err.message);
     }
@@ -51,8 +110,8 @@ export default function PrescriptionScreen({ navigation, route }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Send Prescription</Text>
-      {patientName && <Text style={styles.infoText}>To: {patientName}</Text>}
-      {appointmentId && <Text style={styles.infoText}>Appointment ID: {appointmentId}</Text>}
+      {patientName && <Text style={styles.infoText}>To: ${patientName}</Text>}
+      {appointmentId && <Text style={styles.infoText}>Appointment ID: ${appointmentId}</Text>}
 
       <TextInput
         style={styles.textArea}

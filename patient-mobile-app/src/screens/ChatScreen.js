@@ -1,19 +1,61 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, Button, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { supabase } from '../services/supabase';
+import { useAuth } from '../context/AuthContext';
+import { APPOINTMENT_STATUS } from '../constants/AppointmentConstants';
 
 export default function ChatScreen({ navigation, route }) {
   const { appointmentId } = route.params || {};
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
+  const { session } = useAuth();
 
-  const handleSendMessage = () => {
-    if (message.trim()) {
-      setMessages([...messages, { id: messages.length.toString(), text: message, sender: 'patient' }]);
-      setMessage('');
-      // Simulate doctor response
-      setTimeout(() => {
-        setMessages(prevMessages => [...prevMessages, { id: (prevMessages.length).toString(), text: `Doctor: ${message}`, sender: 'doctor' }]);
-      }, 1000);
+  useEffect(() => {
+    if (!appointmentId) return;
+
+    const fetchMessages = async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('appointment_id', appointmentId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching messages:', error);
+      } else {
+        setMessages(data);
+      }
+    };
+
+    fetchMessages();
+
+    const messageListener = supabase
+      .channel(`chat_${appointmentId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `appointment_id=eq.${appointmentId}` }, payload => {
+        setMessages(prevMessages => [...prevMessages, payload.new]);
+      })
+      .subscribe();
+
+    return () => {
+      messageListener.unsubscribe();
+    };
+  }, [appointmentId]);
+
+  const handleSendMessage = async () => {
+    if (message.trim() && session?.user?.id) {
+      const { error } = await supabase.from('messages').insert({
+        appointment_id: appointmentId,
+        sender_id: session.user.id,
+        content: message,
+        sender_type: 'patient', // Assuming this is the patient app
+      });
+
+      if (error) {
+        console.error('Error sending message:', error);
+        Alert.alert('Error', 'Failed to send message.');
+      } else {
+        setMessage('');
+      }
     }
   };
 
@@ -21,10 +63,21 @@ export default function ChatScreen({ navigation, route }) {
     navigation.navigate('FileAttachment', { appointmentId });
   };
 
-  const handleEndSession = () => {
-    // In a real app, you would update appointment status in Supabase
-    alert('Chat session ended.');
-    navigation.goBack(); // Or navigate to a session summary screen
+  const handleEndSession = async () => {
+    if (!appointmentId) return;
+
+    const { error } = await supabase
+      .from('appointments')
+      .update({ status: APPOINTMENT_STATUS.COMPLETED })
+      .eq('id', appointmentId);
+
+    if (error) {
+      console.error('Error ending session:', error);
+      Alert.alert('Error', 'Failed to end session.');
+    } else {
+      Alert.alert('Chat session ended.');
+      navigation.goBack();
+    }
   };
 
   return (
@@ -38,10 +91,10 @@ export default function ChatScreen({ navigation, route }) {
 
       <FlatList
         data={messages}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
-          <View style={[styles.messageBubble, item.sender === 'patient' ? styles.patientBubble : styles.doctorBubble]}>
-            <Text style={styles.messageText}>{item.text}</Text>
+          <View style={[styles.messageBubble, item.sender_type === 'patient' ? styles.patientBubble : styles.doctorBubble]}>
+            <Text style={styles.messageText}>{item.content}</Text>
           </View>
         )}
         style={styles.messageList}

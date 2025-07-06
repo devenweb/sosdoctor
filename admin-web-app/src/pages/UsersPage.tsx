@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useDoctors } from '../hooks/useDoctors';
 
 interface Doctor {
-  id: number;
+  id: string;
   name: string;
   specialty: string;
   email: string;
@@ -16,20 +16,30 @@ function UsersPage() {
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
 
   const handleAddOrUpdateDoctor = () => {
-    if (newDoctorName && newDoctorSpecialty && newDoctorEmail) {
-      if (editingDoctor) {
-        updateDoctor({ ...editingDoctor, name: newDoctorName, specialty: newDoctorSpecialty, email: newDoctorEmail });
-        setEditingDoctor(null);
-      } else {
-        addDoctor({ name: newDoctorName, specialty: newDoctorSpecialty, email: newDoctorEmail });
-      }
-      setNewDoctorName('');
-      setNewDoctorSpecialty('');
-      setNewDoctorEmail('');
-    } else {
+    if (!newDoctorName.trim() || !newDoctorSpecialty.trim() || !newDoctorEmail.trim()) {
       alert('Please fill in all fields for the doctor.');
+      return;
     }
-  };
+
+    // Basic email validation
+    const emailRegex = /^[^
+@]+@[^
+@]+\.[^
+@]+$/;
+    if (!emailRegex.test(newDoctorEmail)) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+
+    if (editingDoctor) {
+      await updateDoctor({ ...editingDoctor, name: newDoctorName, specialty: newDoctorSpecialty, email: newDoctorEmail });
+      setEditingDoctor(null);
+    } else {
+      await addDoctor({ name: newDoctorName, specialty: newDoctorSpecialty, email: newDoctorEmail });
+    }
+    setNewDoctorName('');
+    setNewDoctorSpecialty('');
+    setNewDoctorEmail('');
 
   const handleEditDoctor = (doctor: Doctor) => {
     setEditingDoctor(doctor);

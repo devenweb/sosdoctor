@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Button, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-native';
-import { supabase } from '../../src/services/supabase'; // Adjust path as needed
-import { useAuth } from '../../src/context/AuthContext'; // Adjust path as needed
+import { supabase } from '../services/supabase';
+import { useAuth } from '../context/AuthContext';
+import { APPOINTMENT_STATUS } from '../constants/AppointmentConstants';
 
 export default function AppointmentsScreen({ navigation }) {
   const [appointments, setAppointments] = useState([]);
@@ -83,13 +84,13 @@ export default function AppointmentsScreen({ navigation }) {
       <Text>Type: {item.appointment_type}</Text>
       <Text>Time: {new Date(item.time_slot).toLocaleString()}</Text>
       <Text>Status: {item.status}</Text>
-      {item.status === 'scheduled' && (
+      {item.status === APPOINTMENT_STATUS.SCHEDULED && (
         <View style={styles.buttonContainer}>
           {item.appointment_type === 'video_consult' && (
             <Button
               title="Start Video Call"
               onPress={() => {
-                updateAppointmentStatus(item.id, 'in_progress');
+                updateAppointmentStatus(item.id, APPOINTMENT_STATUS.IN_PROGRESS);
                 navigation.navigate('VideoCall', { appointmentId: item.id, patientName: item.patient.full_name });
               }}
             />
@@ -98,7 +99,7 @@ export default function AppointmentsScreen({ navigation }) {
             <Button
               title="Start Chat"
               onPress={() => {
-                updateAppointmentStatus(item.id, 'in_progress');
+                updateAppointmentStatus(item.id, APPOINTMENT_STATUS.IN_PROGRESS);
                 navigation.navigate('Chat', { appointmentId: item.id, patientName: item.patient.full_name });
               }}
             />
@@ -109,10 +110,10 @@ export default function AppointmentsScreen({ navigation }) {
           />
         </View>
       )}
-      {item.status === 'in_progress' && (
+      {item.status === APPOINTMENT_STATUS.IN_PROGRESS && (
         <Button
           title="Mark as Completed"
-          onPress={() => updateAppointmentStatus(item.id, 'completed')}
+          onPress={() => updateAppointmentStatus(item.id, APPOINTMENT_STATUS.COMPLETED)}
         />
       )}
     </View>

@@ -1,44 +1,83 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Button, StyleSheet, Alert } from 'react-native';
-// import * as FileSystem from 'expo-file-system'; // Uncomment if actual file download is needed
-// import * as WebBrowser from 'expo-web-browser'; // Uncomment if opening PDF in browser is needed
+import { supabase } from '../services/supabase';
+import * as FileSystem from 'expo-file-system';
+import * as WebBrowser from 'expo-web-browser';
 
 export default function PrescriptionScreen({ navigation, route }) {
   const { prescriptionId } = route.params || {};
-  const [prescriptionUrl, setPrescriptionUrl] = useState(null); // Placeholder for PDF URL
+  const [prescriptionUrl, setPrescriptionUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // In a real app, you would fetch the prescription URL based on prescriptionId
-  // For now, let's simulate a URL
-  React.useEffect(() => {
-    if (prescriptionId) {
-      setPrescriptionUrl(`https://example.com/prescriptions/${prescriptionId}.pdf`);
-    }
+  useEffect(() => {
+    const fetchPrescription = async () => {
+      if (!prescriptionId) {
+        setError('No prescription ID provided.');
+        setLoading(false);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('prescriptions')
+          .select('pdf_url')
+          .eq('id', prescriptionId)
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          setPrescriptionUrl(data.pdf_url);
+        } else {
+          setError('Prescription not found.');
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPrescription();
   }, [prescriptionId]);
 
   const handleDownloadPrescription = async () => {
     if (prescriptionUrl) {
-      Alert.alert('Download Started', 'Simulating prescription download...');
-      // In a real app, you would use expo-file-system to download the file
-      /*
       try {
+        const filename = `prescription_${prescriptionId}.pdf`;
         const downloadResumable = FileSystem.createDownloadResumable(
           prescriptionUrl,
-          FileSystem.documentDirectory + `prescription_${prescriptionId}.pdf`
+          FileSystem.documentDirectory + filename
         );
         const { uri } = await downloadResumable.downloadAsync();
-        console.log('Finished downloading to ', uri);
         Alert.alert('Download Complete', `Prescription saved to ${uri}`);
-        // Optionally open the PDF
-        // await WebBrowser.openBrowserAsync(uri);
+        await WebBrowser.openBrowserAsync(uri);
       } catch (e) {
         console.error(e);
-        Alert.alert('Download Failed', 'Could not download the prescription.');
+        Alert.alert('Download Failed', 'Could not download or open the prescription.');
       }
-      */
     } else {
       Alert.alert('No Prescription', 'No prescription available to download.');
     }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text>Loading prescription...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ color: 'red' }}>Error: {error}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -49,11 +88,10 @@ export default function PrescriptionScreen({ navigation, route }) {
           {prescriptionUrl ? (
             <>
               <Text style={styles.infoText}>View/Download your prescription:</Text>
-              <Button title="Download Prescription (Simulated)" onPress={handleDownloadPrescription} />
-              {/* In a real app, you might embed a PDF viewer or link to open in browser */}
+              <Button title="Download Prescription" onPress={handleDownloadPrescription} />
             </>
           ) : (
-            <Text>Loading prescription...</Text>
+            <Text>Prescription not found.</Text>
           )}
         </>
       ) : (

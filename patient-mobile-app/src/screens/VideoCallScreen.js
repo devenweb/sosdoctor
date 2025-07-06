@@ -1,30 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Button, StyleSheet, Alert } from 'react-native';
+import { supabase } from '../services/supabase';
+import { APPOINTMENT_STATUS } from '../constants/AppointmentConstants';
 
 export default function VideoCallScreen({ navigation, route }) {
   const { appointmentId } = route.params || {};
-  const [callActive, setCallActive] = useState(false);
-  const [callDuration, setCallDuration] = useState(0);
+  const [callActive, setCallActive] = useState(true); // Assume call is active upon entering screen
 
-  useEffect(() => {
-    // Simulate joining a video call
-    const timer = setTimeout(() => {
-      setCallActive(true);
-      Alert.alert('Call Connected', `You are now in a video call for appointment ${appointmentId}.`);
-      // Start call duration timer
-      const durationInterval = setInterval(() => {
-        setCallDuration(prevDuration => prevDuration + 1);
-      }, 1000);
-      return () => clearInterval(durationInterval);
-    }, 2000); // Simulate 2 seconds to connect
+  const handleEndCall = async () => {
+    if (!appointmentId) return;
 
-    return () => clearTimeout(timer);
-  }, [appointmentId]);
+    const { error } = await supabase
+      .from('appointments')
+      .update({ status: APPOINTMENT_STATUS.COMPLETED })
+      .eq('id', appointmentId);
 
-  const handleEndCall = () => {
-    setCallActive(false);
-    Alert.alert('Call Ended', `Call for appointment ${appointmentId} has ended. Duration: ${callDuration} seconds.`);
-    navigation.goBack(); // Or navigate to a call summary screen
+    if (error) {
+      console.error('Error ending video call session:', error);
+      Alert.alert('Error', 'Failed to end video call session.');
+    } else {
+      setCallActive(false);
+      Alert.alert('Call Ended', `Video call for appointment ${appointmentId} has ended.`);
+      navigation.goBack();
+    }
   };
 
   const handleAttachFiles = () => {
@@ -38,12 +36,12 @@ export default function VideoCallScreen({ navigation, route }) {
       {callActive ? (
         <>
           <Text style={styles.statusText}>Call Active</Text>
-          <Text>Duration: {callDuration} seconds</Text>
+          {/* In a real app, video stream would be rendered here */}
           <Button title="Attach Files" onPress={handleAttachFiles} />
           <Button title="End Call" onPress={handleEndCall} color="red" />
         </>
       ) : (
-        <Text style={styles.statusText}>Connecting to call...</Text>
+        <Text style={styles.statusText}>Call has ended.</Text>
       )}
     </View>
   );

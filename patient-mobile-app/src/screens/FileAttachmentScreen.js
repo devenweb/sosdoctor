@@ -19,14 +19,41 @@ export default function FileAttachmentScreen({ navigation, route }) {
     }
   };
 
-  const handleUploadFile = () => {
-    if (image) {
-      // In a real app, you would upload the image to a storage service (e.g., Supabase Storage)
-      Alert.alert('File Uploaded', `File attached for appointment ${appointmentId}.`);
-      console.log('Uploading file:', image);
-      navigation.goBack(); // Go back to the previous screen (VideoCall or Chat)
-    } else {
+  import { supabase } from '../services/supabase';
+
+  const handleUploadFile = async () => {
+    if (!image) {
       Alert.alert('No File Selected', 'Please select a file to upload.');
+      return;
+    }
+
+    const fileExtension = image.split('.').pop();
+    const fileName = `${appointmentId}_${Date.now()}.${fileExtension}`;
+    const filePath = `public/${fileName}`;
+
+    try {
+      const response = await fetch(image);
+      const blob = await response.blob();
+
+      const { data, error } = await supabase.storage
+        .from('attachments') // Assuming you have a bucket named 'attachments'
+        .upload(filePath, blob, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const { data: publicUrlData } = supabase.storage.from('attachments').getPublicUrl(filePath);
+
+      Alert.alert('File Uploaded', `File attached for appointment ${appointmentId}. URL: ${publicUrlData.publicUrl}`);
+      console.log('Uploaded file URL:', publicUrlData.publicUrl);
+      navigation.goBack();
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      Alert.alert('Upload Failed', error.message);
     }
   };
 

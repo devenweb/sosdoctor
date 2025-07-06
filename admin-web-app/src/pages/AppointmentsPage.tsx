@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
+import { APPOINTMENT_STATUS } from '../constants/AppointmentConstants';
 
 interface Appointment {
-  id: string; // Changed to string for UUID
+  id: string;
   patientName: string;
   doctorName: string;
   type: string;
   date: string;
-  status: 'scheduled' | 'completed' | 'cancelled';
+  status: keyof typeof APPOINTMENT_STATUS;
 }
 
 function AppointmentsPage() {
@@ -21,7 +22,7 @@ function AppointmentsPage() {
     const appointmentSubscription = supabase
       .from('appointments')
       .on('*', payload => {
-        fetchAppointments(); // Re-fetch all appointments on any change
+        fetchAppointments();
       })
       .subscribe();
 
@@ -66,7 +67,7 @@ function AppointmentsPage() {
     }
   };
 
-  const handleUpdateStatus = async (id: string, newStatus: 'scheduled' | 'completed' | 'cancelled') => {
+  const handleUpdateStatus = async (id: string, newStatus: keyof typeof APPOINTMENT_STATUS) => {
     try {
       const { error } = await supabase
         .from('appointments')
@@ -76,7 +77,6 @@ function AppointmentsPage() {
       if (error) {
         throw error;
       }
-      // Optimistically update UI or re-fetch
       fetchAppointments();
     } catch (err: any) {
       alert(`Error updating status: ${err.message}`);
@@ -119,12 +119,14 @@ function AppointmentsPage() {
               <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                 <select
                   value={appointment.status}
-                  onChange={(e) => handleUpdateStatus(appointment.id, e.target.value as 'scheduled' | 'completed' | 'cancelled')}
+                  onChange={(e) => handleUpdateStatus(appointment.id, e.target.value as keyof typeof APPOINTMENT_STATUS)}
                   style={{ padding: '5px', borderRadius: '3px' }}
                 >
-                  <option value="scheduled">Scheduled</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
+                  {Object.values(APPOINTMENT_STATUS).map((status) => (
+                    <option key={status} value={status}>
+                      {status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ')}
+                    </option>
+                  ))}
                 </select>
               </td>
             </tr>
